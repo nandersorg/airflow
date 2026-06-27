@@ -6,6 +6,8 @@
 - `airflow.yaml` — Airflow api-server deployment, service, and PVC
 - `scheduler.yaml` — Airflow scheduler deployment
 - `dag-processor.yaml` — Airflow DAG processor deployment
+- `db-migrate.yaml` — metadata database migration job
+- `admin-user.yaml` — Airflow admin user bootstrap job
 
 ### Quick start
 
@@ -16,6 +18,8 @@ cd /home/nander/repos/airflow
 microk8s kubectl apply -f k8s/namespace.yaml
 microk8s kubectl apply -f k8s/db-migrate.yaml
 microk8s kubectl wait --for=condition=complete job/airflow-db-migrate -n airflow --timeout=10m
+microk8s kubectl apply -f k8s/admin-user.yaml
+microk8s kubectl wait --for=condition=complete job/airflow-admin-bootstrap -n airflow --timeout=10m
 microk8s kubectl apply -f k8s/airflow.yaml -f k8s/scheduler.yaml -f k8s/dag-processor.yaml
 
 # Check status

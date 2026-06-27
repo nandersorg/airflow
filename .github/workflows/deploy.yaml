@@ -24,6 +24,14 @@ jobs:
             --namespace=airflow \
             --dry-run=client -o yaml | microk8s kubectl apply -f -
 
+      - name: Create or update airflow-admin-secret
+        run: |
+          microk8s kubectl create secret generic airflow-admin-secret \
+            --from-literal=USERNAME="${{ secrets.AIRFLOW_ADMIN_USERNAME }}" \
+            --from-literal=PASSWORD="${{ secrets.AIRFLOW_ADMIN_PASSWORD }}" \
+            --namespace=airflow \
+            --dry-run=client -o yaml | microk8s kubectl apply -f -
+
       - name: Create or update airflow-requirements
         run: |
           microk8s kubectl create configmap airflow-requirements \
@@ -39,6 +47,15 @@ jobs:
       - name: Wait for database migration
         run: |
           microk8s kubectl wait --for=condition=complete job/airflow-db-migrate -n airflow --timeout=10m
+
+      - name: Apply admin user bootstrap job
+        run: |
+          microk8s kubectl delete job airflow-admin-bootstrap -n airflow --ignore-not-found
+          microk8s kubectl apply -f k8s/admin-user.yaml
+
+      - name: Wait for admin user bootstrap
+        run: |
+          microk8s kubectl wait --for=condition=complete job/airflow-admin-bootstrap -n airflow --timeout=10m
 
       - name: Apply Airflow workloads
         run: |
