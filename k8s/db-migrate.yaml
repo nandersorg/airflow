@@ -1,20 +1,13 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: batch/v1
+kind: Job
 metadata:
-  name: airflow-scheduler
+  name: airflow-db-migrate
   namespace: airflow
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: airflow
-      component: scheduler
+  backoffLimit: 0
   template:
-    metadata:
-      labels:
-        app: airflow
-        component: scheduler
     spec:
+      restartPolicy: Never
       initContainers:
         - name: install-requirements
           image: apache/airflow:3.2.2-python3.11
@@ -28,11 +21,12 @@ spec:
             - mountPath: /home/airflow/.local
               name: airflow-user-site
       containers:
-        - name: scheduler
+        - name: migrate
           image: apache/airflow:3.2.2-python3.11
           command:
             - airflow
-            - scheduler
+            - db
+            - migrate
           env:
             - name: AIRFLOW_HOME
               value: /home/airflow
@@ -47,30 +41,12 @@ spec:
                   key: DATABASE_URL
             - name: AIRFLOW__CORE__EXECUTOR
               value: LocalExecutor
-            - name: OLLAMA_HOST
-              value: http://ollama-lb.gobble.svc.cluster.local:11434
-            - name: NOS_BASE_URL
-              value: https://nos.nl
-            - name: SENTIMENT_MODEL
-              value: llama3.2:1b
           volumeMounts:
-            - mountPath: /home/airflow/dags
-              name: dags-volume
             - mountPath: /home/airflow
               name: airflow-home
             - mountPath: /home/airflow/.local
               name: airflow-user-site
-          resources:
-            requests:
-              cpu: "250m"
-              memory: "512Mi"
-            limits:
-              cpu: "500m"
-              memory: "1Gi"
       volumes:
-        - name: dags-volume
-          persistentVolumeClaim:
-            claimName: airflow-dags-pvc
         - name: airflow-home
           emptyDir: {}
         - name: airflow-user-site

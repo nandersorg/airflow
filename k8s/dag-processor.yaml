@@ -1,19 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: airflow-scheduler
+  name: airflow-dag-processor
   namespace: airflow
+  labels:
+    app: airflow
+    component: dag-processor
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: airflow
-      component: scheduler
+      component: dag-processor
   template:
     metadata:
       labels:
         app: airflow
-        component: scheduler
+        component: dag-processor
     spec:
       initContainers:
         - name: install-requirements
@@ -28,11 +31,11 @@ spec:
             - mountPath: /home/airflow/.local
               name: airflow-user-site
       containers:
-        - name: scheduler
+        - name: dag-processor
           image: apache/airflow:3.2.2-python3.11
           command:
             - airflow
-            - scheduler
+            - dag-processor
           env:
             - name: AIRFLOW_HOME
               value: /home/airflow

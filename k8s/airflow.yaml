@@ -34,7 +34,7 @@ spec:
     spec:
       initContainers:
         - name: install-requirements
-          image: apache/airflow:2.8.2-python3.11
+          image: apache/airflow:3.2.2-python3.11
           command:
             - /bin/bash
             - -c
@@ -46,7 +46,14 @@ spec:
               name: airflow-user-site
       containers:
         - name: webserver
-          image: apache/airflow:2.8.2-python3.11
+          image: apache/airflow:3.2.2-python3.11
+          command:
+            - airflow
+            - api-server
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8080"
           ports:
             - containerPort: 8080
               name: webserver

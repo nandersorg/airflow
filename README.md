@@ -12,14 +12,14 @@ Navigate to **Settings → Secrets and variables → Actions** and add:
 
 | Secret Name | Description | Example |
 |---|---|---|
-| `AIRFLOW_DATABASE_URL` | Database connection string | `sqlite:////home/airflow/airflow.db` or `postgresql://airflow:password@postgres.postgresql.svc.cluster.local:5432/postgres` |
+| `AIRFLOW_DATABASE_URL` | Database connection string | Use PostgreSQL for Kubernetes: `postgresql://airflow:password@postgres.postgresql.svc.cluster.local:5432/postgres` |
 
-**For SQLite (development):**
+**For SQLite (local development only):**
 ```
 sqlite:////home/airflow/airflow.db
 ```
 
-**For PostgreSQL (production):**
+**For PostgreSQL (GitHub Actions / Kubernetes):**
 ```
 postgresql://airflow:<password>@postgres.postgresql.svc.cluster.local:5432/postgres
 ```
@@ -41,9 +41,10 @@ See PostgreSQL repo for shared database setup.
 pip install -r requirements.txt
 export AIRFLOW_HOME=$PWD
 export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:////$(pwd)/airflow.db
-airflow db init
-airflow webserver -p 3003
+airflow db migrate
+airflow api-server -p 3003
 airflow scheduler
+airflow dag-processor
 ```
 
 Then open http://localhost:3003
@@ -63,12 +64,14 @@ Then open http://localhost:3003
    microk8s kubectl apply -f k8s/namespace.yaml
 
    # Create secret
-   microk8s kubectl create secret generic airflow-secret \
-     --from-literal=DATABASE_URL="sqlite:////home/airflow/airflow.db" \
-     --namespace=airflow
+    microk8s kubectl create secret generic airflow-secret \
+       --from-literal=DATABASE_URL="postgresql://airflow:<password>@postgres.postgresql.svc.cluster.local:5432/postgres" \
+       --namespace=airflow
 
-   # Apply deployment
-   microk8s kubectl apply -f k8s/airflow.yaml
+    # Apply the migration job first, then the workloads
+    microk8s kubectl apply -f k8s/db-migrate.yaml
+    microk8s kubectl wait --for=condition=complete job/airflow-db-migrate -n airflow --timeout=10m
+    microk8s kubectl apply -f k8s/airflow.yaml -f k8s/scheduler.yaml -f k8s/dag-processor.yaml
    ```
 
 4. **Access Airflow:**
@@ -88,6 +91,8 @@ Schedule: Daily at 06:00 UTC
 **Dependencies:**
 - `requests` — HTTP requests
 - `beautifulsoup4` — RSS/HTML parsing
+- `psycopg2-binary` — PostgreSQL driver for metadata DB
+- `asyncpg` — async PostgreSQL driver used by Airflow 3
 - Running Ollama service at `http://ollama-lb.gobble.svc.cluster.local:11434`
 
 ## Configuration
@@ -101,6 +106,7 @@ All configuration uses environment variables (no hardcoded values):
 AIRFLOW__DATABASE__SQL_ALCHEMY_CONN   # Database connection (from secret)
 AIRFLOW__CORE__DAGS_FOLDER            # DAGs location
 AIRFLOW__CORE__LOAD_EXAMPLES          # Load example DAGs
+AIRFLOW__CORE__EXECUTOR               # Executor (LocalExecutor)
 
 # Ollama
 OLLAMA_HOST                           # Ollama service address

@@ -1,6 +1,7 @@
-from datetime import datetime, timedelta
-from airflow import DAG
-from airflow.operators.python import PythonOperator
+from datetime import datetime, timedelta, timezone
+
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk import DAG
 import sys
 import os
 
@@ -13,14 +14,14 @@ default_args = {
     "owner": "nander",
     "retries": 2,
     "retry_delay": timedelta(minutes=5),
-    "start_date": datetime(2026, 6, 27),
+    "start_date": datetime(2026, 6, 27, tzinfo=timezone.utc),
 }
 
 dag = DAG(
     "news_sentiment",
     default_args=default_args,
     description="Scrape NOS.nl and analyze article sentiment via Ollama",
-    schedule_interval="0 6 * * *",  # 06:00 UTC daily
+    schedule="0 6 * * *",  # 06:00 UTC daily
     catchup=False,
 )
 
@@ -36,7 +37,7 @@ def scrape_and_analyze(**context):
         result = {
             **article,
             "sentiment": sentiment,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         results.append(result)
         print(f"  {article['title'][:60]}... → {sentiment}")
