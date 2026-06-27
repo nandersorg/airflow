@@ -16,6 +16,7 @@ repos:
     hooks:
       - id: detect-secrets
         args: ['--baseline', '.secrets.baseline']
+        exclude: '(README.md|\.env\.example)'
 
   # Python linting
   - repo: https://github.com/astral-sh/ruff-pre-commit

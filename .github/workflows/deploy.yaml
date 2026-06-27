@@ -16,6 +16,14 @@ jobs:
         run: |
           microk8s kubectl apply -f k8s/namespace.yaml
 
+      - name: Create airflow-secret from GitHub Secrets
+        run: |
+          microk8s kubectl create secret generic airflow-secret \
+            --from-literal=DATABASE_URL='${{ secrets.AIRFLOW_DATABASE_URL }}' \
+            --namespace=airflow \
+            --dry-run=client -o yaml | microk8s kubectl apply -f -
+          echo "✓ Secret created from GitHub Secrets"
+
       - name: Apply Kubernetes manifests
         run: |
           microk8s kubectl apply -f k8s/airflow.yaml

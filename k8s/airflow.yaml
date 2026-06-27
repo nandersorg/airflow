@@ -6,11 +6,11 @@ metadata:
 data:
   AIRFLOW__CORE__DAGS_FOLDER: /home/airflow/dags
   AIRFLOW__CORE__LOAD_EXAMPLES: "False"
-  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: sqlite:////home/airflow/airflow.db
   AIRFLOW__CORE__EXECUTOR: LocalExecutor
   OLLAMA_HOST: http://ollama-lb.gobble.svc.cluster.local:11434
   NOS_BASE_URL: https://nos.nl
   SENTIMENT_MODEL: llama3.2:1b
+  # Database connection is set via environment variable (see Deployment spec)
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -111,9 +111,9 @@ spec:
           env:
             - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
               valueFrom:
-                configMapKeyRef:
-                  name: airflow-config
-                  key: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+                secretKeyRef:
+                  name: airflow-secret
+                  key: DATABASE_URL
           volumeMounts:
             - mountPath: /home/airflow
               name: airflow-home
