@@ -1,32 +1,4 @@
 apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: airflow-requirements
-  namespace: airflow
-data:
-  AIRFLOW__CORE__DAGS_FOLDER: /home/airflow/dags
-  AIRFLOW__CORE__LOAD_EXAMPLES: "False"
-  AIRFLOW__CORE__EXECUTOR: LocalExecutor
-  OLLAMA_HOST: http://ollama-lb.gobble.svc.cluster.local:11434
-  NOS_BASE_URL: https://nos.nl
-  SENTIMENT_MODEL: llama3.2:1b
-  # Database connection is set via environment variable (see Deployment spec)
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: airflow-requirements
-  namespace: airflow
-data:
-  requirements.txt: |
-    apache-airflow==2.8.2
-    apache-airflow-providers-http==4.8.0
-    apache-airflow-providers-kubernetes==8.1.0
-    requests==2.31.0
-    beautifulsoup4==4.12.2
-    python-dotenv==1.0.0
----
-apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: airflow-dags-pvc
@@ -60,69 +32,51 @@ spec:
         app: airflow
         component: webserver
     spec:
-      # Changed: Moved pip installation to a runtime command or use an entrypoint wrapper
-      # so dependencies are preserved in the running webserver container.
-      containers:
-        - name: webserver
+      initContainers:
+        - name: install-requirements
           image: apache/airflow:2.8.2-python3.11
           command:
             - /bin/bash
             - -c
-            - |
-              # Upgrade pip silently and install requirements using python -m context
-              python -m pip install --upgrade pip --user
-              python -m pip install --no-cache-dir --user -r /tmp/requirements.txt
-
-              # Run the native entrypoint to ensure all environment paths are loaded perfectly
-              exec /usr/bin/dumb-init -- /entrypoint airflow webserver
+            - pip install --no-cache-dir --user -r /requirements/requirements.txt
+          volumeMounts:
+            - mountPath: /requirements
+              name: requirements-volume
+            - mountPath: /home/airflow/.local
+              name: airflow-user-site
+      containers:
+        - name: webserver
+          image: apache/airflow:2.8.2-python3.11
           ports:
-            - containerPort: 8080 # Changed to Airflow's native internal port
+            - containerPort: 8080
               name: webserver
           env:
             - name: AIRFLOW_HOME
               value: /home/airflow
             - name: AIRFLOW__CORE__DAGS_FOLDER
-              valueFrom:
-                configMapKeyRef:
-                  name: airflow-config
-                  key: AIRFLOW__CORE__DAGS_FOLDER
+              value: /home/airflow/dags
             - name: AIRFLOW__CORE__LOAD_EXAMPLES
-              valueFrom:
-                configMapKeyRef:
-                  name: airflow-config
-                  key: AIRFLOW__CORE__LOAD_EXAMPLES
+              value: "False"
             - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
               valueFrom:
                 secretKeyRef:
                   name: airflow-secret
                   key: DATABASE_URL
             - name: AIRFLOW__CORE__EXECUTOR
-              valueFrom:
-                configMapKeyRef:
-                  name: airflow-config
-                  key: AIRFLOW__CORE__EXECUTOR
+              value: LocalExecutor
             - name: OLLAMA_HOST
-              valueFrom:
-                configMapKeyRef:
-                  name: airflow-config
-                  key: OLLAMA_HOST
+              value: http://ollama-lb.gobble.svc.cluster.local:11434
             - name: NOS_BASE_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: airflow-config
-                  key: NOS_BASE_URL
+              value: https://nos.nl
             - name: SENTIMENT_MODEL
-              valueFrom:
-                configMapKeyRef:
-                  name: airflow-config
-                  key: SENTIMENT_MODEL
+              value: llama3.2:1b
           volumeMounts:
             - mountPath: /home/airflow/dags
               name: dags-volume
             - mountPath: /home/airflow
               name: airflow-home
-            - mountPath: /tmp
-              name: requirements-volume
+            - mountPath: /home/airflow/.local
+              name: airflow-user-site
           resources:
             requests:
               cpu: "500m"
@@ -133,8 +87,8 @@ spec:
           livenessProbe:
             httpGet:
               path: /health
-              port: 8080 # Target native port
-            initialDelaySeconds: 90 # Increased slightly to allow pip install time to settle
+              port: 8080
+            initialDelaySeconds: 90
             periodSeconds: 10
             failureThreshold: 3
       volumes:
@@ -142,6 +96,8 @@ spec:
           persistentVolumeClaim:
             claimName: airflow-dags-pvc
         - name: airflow-home
+          emptyDir: {}
+        - name: airflow-user-site
           emptyDir: {}
         - name: requirements-volume
           configMap:
@@ -160,7 +116,7 @@ spec:
     app: airflow
     component: webserver
   ports:
-    - port: 3003 # Keeps external loadbalancer port mapping intact
-      targetPort: 8080 # Maps down to the correct internal container port
+    - port: 3003
+      targetPort: 8080
       name: http
   type: LoadBalancer

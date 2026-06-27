@@ -16,8 +16,6 @@ jobs:
       - name: Ensure namespace
         run: |
           microk8s kubectl apply -f k8s/namespace.yaml
-          # Wait until the namespace exists and is ready for mutations
-          microk8s kubectl wait --for=create namespace/airflow --timeout=15s
 
       - name: Create or update airflow-secret
         run: |
@@ -26,12 +24,11 @@ jobs:
             --namespace=airflow \
             --dry-run=client -o yaml | microk8s kubectl apply -f -
 
-      - name: Generate Airflow Requirements ConfigMap
+      - name: Create or update airflow-requirements
         run: |
-          # Creates the ConfigMap directly using your root level requirements file
           microk8s kubectl create configmap airflow-requirements \
-            --namespace=airflow \
             --from-file=requirements.txt=requirements.txt \
+            --namespace=airflow \
             --dry-run=client -o yaml | microk8s kubectl apply -f -
 
       - name: Apply Kubernetes manifests
@@ -40,17 +37,14 @@ jobs:
 
       - name: Wait for PVCs to bind
         run: |
-          echo "Checking volume reservation status..."
-          # Selects all PVCs within the namespace simultaneously instead of looping
+          echo "Waiting for airflow-dags-pvc to bind..."
           microk8s kubectl wait --namespace=airflow \
             --for=jsonpath='{.status.phase}'=Bound \
-            pvc --all --timeout=2m
+            pvc/airflow-dags-pvc --timeout=5m
 
       - name: Track Webserver Rollout Status
         run: |
           echo "Monitoring application startup..."
-          # This native command blocks exactly until the new pods pass their readiness/liveness checks,
-          # or exits immediately with an error code if the pods crash (no hanging).
           microk8s kubectl rollout status deployment/airflow-webserver -n airflow --timeout=5m
 
       - name: Verify cluster state
@@ -58,3 +52,4 @@ jobs:
         run: |
           echo "=== Workload Status ==="
           microk8s kubectl get pods,svc,pvc -n airflow
+          echo "Port-forward: microk8s kubectl port-forward -n airflow svc/airflow-webserver 3003:3003"
