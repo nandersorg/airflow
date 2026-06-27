@@ -10,49 +10,43 @@ jobs:
   deploy:
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Ensure namespace
         run: |
           microk8s kubectl apply -f k8s/namespace.yaml
-          echo "Waiting for namespace to be active..."
-          microk8s kubectl wait --for=condition=active namespace/airflow --timeout=30s || true
-          sleep 1
+          # Wait until the namespace exists and is ready for mutations
+          microk8s kubectl wait --for=condition=active namespace/airflow --timeout=15s
 
-      - name: Create airflow-secret from GitHub Secrets
+      - name: Create or update airflow-secret
         run: |
           microk8s kubectl create secret generic airflow-secret \
             --from-literal=DATABASE_URL='${{ secrets.AIRFLOW_DATABASE_URL }}' \
             --namespace=airflow \
             --dry-run=client -o yaml | microk8s kubectl apply -f -
-          echo "✓ Secret created from GitHub Secrets"
 
       - name: Apply Kubernetes manifests
         run: |
           microk8s kubectl apply -f k8s/airflow.yaml
 
-      - name: Wait for PVCs to be bound
+      - name: Wait for PVCs to bind
         run: |
-          echo "Waiting for PVCs to be bound..."
-          for pvc in $(microk8s kubectl get pvc -n airflow -o jsonpath='{.items[*].metadata.name}'); do
-            echo "Waiting for PVC: $pvc"
-            microk8s kubectl wait --for=jsonpath='{.status.phase}'=Bound pvc/$pvc -n airflow --timeout=5m || {
-              echo "⚠️ PVC $pvc failed to bind. Checking status..."
-              microk8s kubectl describe pvc/$pvc -n airflow
-              exit 1
-            }
-          done
-          echo "✓ All PVCs bound"
+          echo "Checking volume reservation status..."
+          # Selects all PVCs within the namespace simultaneously instead of looping
+          microk8s kubectl wait --namespace=airflow \
+            --for=jsonpath='{.status.phase}'=Bound \
+            pvc --all --timeout=2m
 
-      - name: Wait for Airflow webserver deployment
+      - name: Track Webserver Rollout Status
         run: |
-          echo "Waiting for Airflow webserver to be ready..."
-          microk8s kubectl wait --for=condition=available --timeout=5m \
-            deployment/airflow-webserver -n airflow
+          echo "Monitoring application startup..."
+          # This native command blocks exactly until the new pods pass their readiness/liveness checks,
+          # or exits immediately with an error code if the pods crash (no hanging).
+          microk8s kubectl rollout status deployment/airflow-webserver -n airflow --timeout=5m
 
-      - name: Verify deployment
+      - name: Verify cluster state
+        if: always()
         run: |
-          echo "Airflow deployment status:"
-          microk8s kubectl get pods -n airflow
-          microk8s kubectl get svc -n airflow
-          echo "Port-forward: microk8s kubectl port-forward -n airflow svc/airflow-webserver 8080:8080"
+          echo "=== Workload Status ==="
+          microk8s kubectl get pods,svc,pvc -n airflow
