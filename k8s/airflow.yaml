@@ -49,7 +49,7 @@ spec:
         - name: webserver
           image: apache/airflow:2.8.2-python3.11
           ports:
-            - containerPort: 8080
+            - containerPort: 3003
           env:
             - name: AIRFLOW_HOME
               value: /home/airflow
@@ -103,7 +103,7 @@ spec:
           livenessProbe:
             httpGet:
               path: /health
-              port: 8080
+              port: 3003
             initialDelaySeconds: 60
             periodSeconds: 10
             failureThreshold: 3
@@ -127,7 +127,7 @@ spec:
     app: airflow
     component: webserver
   ports:
-    - port: 8080
-      targetPort: 8080
+    - port: 3003
+      targetPort: 3003
       name: http
   type: LoadBalancer

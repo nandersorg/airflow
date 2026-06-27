@@ -42,11 +42,11 @@ pip install -r requirements.txt
 export AIRFLOW_HOME=$PWD
 export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:////$(pwd)/airflow.db
 airflow db init
-airflow webserver -p 8080
+airflow webserver -p 3003
 airflow scheduler
 ```
 
-Then open http://localhost:8080
+Then open http://localhost:3003
 
 ### Deploy to MicroK8s
 
@@ -73,8 +73,8 @@ Then open http://localhost:8080
 
 4. **Access Airflow:**
    ```bash
-   microk8s kubectl port-forward -n airflow svc/airflow-webserver 8080:8080
-   # Open http://localhost:8080
+   microk8s kubectl port-forward -n airflow svc/airflow-webserver 3003:3003
+   # Open http://localhost:3003
    ```
 
 ## DAGs
