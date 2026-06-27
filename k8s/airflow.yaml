@@ -13,6 +13,20 @@ data:
   # Database connection is set via environment variable (see Deployment spec)
 ---
 apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-requirements
+  namespace: airflow
+data:
+  requirements.txt: |
+    apache-airflow==2.8.2
+    apache-airflow-providers-http==4.8.0
+    apache-airflow-providers-kubernetes==8.1.0
+    requests==2.31.0
+    beautifulsoup4==4.12.2
+    python-dotenv==1.0.0
+---
+apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: airflow-dags-pvc
@@ -45,6 +59,16 @@ spec:
         app: airflow
         component: webserver
     spec:
+      initContainers:
+        - name: install-requirements
+          image: apache/airflow:2.8.2-python3.11
+          command:
+            - /bin/bash
+            - -c
+            - "pip install --no-cache-dir -r /tmp/requirements.txt"
+          volumeMounts:
+            - mountPath: /tmp
+              name: requirements-volume
       containers:
         - name: webserver
           image: apache/airflow:2.8.2-python3.11
@@ -113,6 +137,9 @@ spec:
             claimName: airflow-dags-pvc
         - name: airflow-home
           emptyDir: {}
+        - name: requirements-volume
+          configMap:
+            name: airflow-requirements
 ---
 apiVersion: v1
 kind: Service
