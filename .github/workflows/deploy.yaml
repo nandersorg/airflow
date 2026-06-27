@@ -15,6 +15,9 @@ jobs:
       - name: Ensure namespace
         run: |
           microk8s kubectl apply -f k8s/namespace.yaml
+          echo "Waiting for namespace to be active..."
+          microk8s kubectl wait --for=condition=active namespace/airflow --timeout=30s || true
+          sleep 1
 
       - name: Create airflow-secret from GitHub Secrets
         run: |
@@ -27,6 +30,19 @@ jobs:
       - name: Apply Kubernetes manifests
         run: |
           microk8s kubectl apply -f k8s/airflow.yaml
+
+      - name: Wait for PVCs to be bound
+        run: |
+          echo "Waiting for PVCs to be bound..."
+          for pvc in $(microk8s kubectl get pvc -n airflow -o jsonpath='{.items[*].metadata.name}'); do
+            echo "Waiting for PVC: $pvc"
+            microk8s kubectl wait --for=jsonpath='{.status.phase}'=Bound pvc/$pvc -n airflow --timeout=5m || {
+              echo "⚠️ PVC $pvc failed to bind. Checking status..."
+              microk8s kubectl describe pvc/$pvc -n airflow
+              exit 1
+            }
+          done
+          echo "✓ All PVCs bound"
 
       - name: Wait for Airflow webserver deployment
         run: |
