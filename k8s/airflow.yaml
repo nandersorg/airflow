@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: airflow-config
+  name: airflow-requirements
   namespace: airflow
 data:
   AIRFLOW__CORE__DAGS_FOLDER: /home/airflow/dags
@@ -69,8 +69,12 @@ spec:
             - /bin/bash
             - -c
             - |
-              pip install --no-cache-dir -r /tmp/requirements.txt
-              exec airflow webserver
+              # Upgrade pip silently and install requirements using python -m context
+              python -m pip install --upgrade pip --user
+              python -m pip install --no-cache-dir --user -r /tmp/requirements.txt
+
+              # Run the native entrypoint to ensure all environment paths are loaded perfectly
+              exec /usr/bin/dumb-init -- /entrypoint airflow webserver
           ports:
             - containerPort: 8080 # Changed to Airflow's native internal port
               name: webserver
