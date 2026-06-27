@@ -51,6 +51,8 @@ spec:
           ports:
             - containerPort: 8080
           env:
+            - name: AIRFLOW_HOME
+              value: /home/airflow
             - name: AIRFLOW__CORE__DAGS_FOLDER
               valueFrom:
                 configMapKeyRef:
@@ -63,9 +65,9 @@ spec:
                   key: AIRFLOW__CORE__LOAD_EXAMPLES
             - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
               valueFrom:
-                configMapKeyRef:
-                  name: airflow-config
-                  key: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+                secretKeyRef:
+                  name: airflow-secret
+                  key: DATABASE_URL
             - name: AIRFLOW__CORE__EXECUTOR
               valueFrom:
                 configMapKeyRef:
@@ -102,21 +104,9 @@ spec:
             httpGet:
               path: /health
               port: 8080
-            initialDelaySeconds: 30
+            initialDelaySeconds: 60
             periodSeconds: 10
-      initContainers:
-        - name: init-db
-          image: apache/airflow:2.8.2-python3.11
-          command: ["airflow", "db", "init"]
-          env:
-            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
-              valueFrom:
-                secretKeyRef:
-                  name: airflow-secret
-                  key: DATABASE_URL
-          volumeMounts:
-            - mountPath: /home/airflow
-              name: airflow-home
+            failureThreshold: 3
       volumes:
         - name: dags-volume
           persistentVolumeClaim:
