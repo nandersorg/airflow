@@ -1,0 +1,143 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-config
+  namespace: airflow
+data:
+  AIRFLOW__CORE__DAGS_FOLDER: /home/airflow/dags
+  AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: sqlite:////home/airflow/airflow.db
+  AIRFLOW__CORE__EXECUTOR: LocalExecutor
+  OLLAMA_HOST: http://ollama-lb.gobble.svc.cluster.local:11434
+  NOS_BASE_URL: https://nos.nl
+  SENTIMENT_MODEL: llama3.2:1b
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: airflow-dags-pvc
+  namespace: airflow
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: microk8s-hostpath
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-webserver
+  namespace: airflow
+  labels:
+    app: airflow
+    component: webserver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow
+      component: webserver
+  template:
+    metadata:
+      labels:
+        app: airflow
+        component: webserver
+    spec:
+      containers:
+        - name: webserver
+          image: apache/airflow:2.8.2-python3.11
+          ports:
+            - containerPort: 8080
+          env:
+            - name: AIRFLOW__CORE__DAGS_FOLDER
+              valueFrom:
+                configMapKeyRef:
+                  name: airflow-config
+                  key: AIRFLOW__CORE__DAGS_FOLDER
+            - name: AIRFLOW__CORE__LOAD_EXAMPLES
+              valueFrom:
+                configMapKeyRef:
+                  name: airflow-config
+                  key: AIRFLOW__CORE__LOAD_EXAMPLES
+            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+              valueFrom:
+                configMapKeyRef:
+                  name: airflow-config
+                  key: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+            - name: AIRFLOW__CORE__EXECUTOR
+              valueFrom:
+                configMapKeyRef:
+                  name: airflow-config
+                  key: AIRFLOW__CORE__EXECUTOR
+            - name: OLLAMA_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: airflow-config
+                  key: OLLAMA_HOST
+            - name: NOS_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: airflow-config
+                  key: NOS_BASE_URL
+            - name: SENTIMENT_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: airflow-config
+                  key: SENTIMENT_MODEL
+          volumeMounts:
+            - mountPath: /home/airflow/dags
+              name: dags-volume
+            - mountPath: /home/airflow
+              name: airflow-home
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "2Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      initContainers:
+        - name: init-db
+          image: apache/airflow:2.8.2-python3.11
+          command: ["airflow", "db", "init"]
+          env:
+            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+              valueFrom:
+                configMapKeyRef:
+                  name: airflow-config
+                  key: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+          volumeMounts:
+            - mountPath: /home/airflow
+              name: airflow-home
+      volumes:
+        - name: dags-volume
+          persistentVolumeClaim:
+            claimName: airflow-dags-pvc
+        - name: airflow-home
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow-webserver
+  namespace: airflow
+  labels:
+    app: airflow
+    component: webserver
+spec:
+  selector:
+    app: airflow
+    component: webserver
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+  type: LoadBalancer

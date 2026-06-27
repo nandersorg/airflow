@@ -1,0 +1,33 @@
+# Local data and secrets
+.env
+*.log
+*.pid
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Airflow
+airflow.db
+logs/
+dags/__pycache__/
+plugins/__pycache__/
+airflow_home/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+venv/
+env/
+.venv

@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: airflow-scheduler
+  namespace: airflow
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: scheduler
+          image: apache/airflow:2.8.2-python3.11
+          command: ["airflow", "scheduler"]
+          env:
+            - name: AIRFLOW__CORE__DAGS_FOLDER
+              value: /home/airflow/dags
+            - name: AIRFLOW__CORE__LOAD_EXAMPLES
+              value: "False"
+            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+              value: "sqlite:////home/airflow/airflow.db"
+            - name: AIRFLOW__CORE__EXECUTOR
+              value: LocalExecutor
+            - name: OLLAMA_HOST
+              value: "http://ollama-lb.gobble.svc.cluster.local:11434"
+            - name: NOS_BASE_URL
+              value: "https://nos.nl"
+            - name: SENTIMENT_MODEL
+              value: "llama3.2:1b"
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
