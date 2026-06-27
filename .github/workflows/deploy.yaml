@@ -31,9 +31,18 @@ jobs:
             --namespace=airflow \
             --dry-run=client -o yaml | microk8s kubectl apply -f -
 
-      - name: Apply Kubernetes manifests
+      - name: Apply db migration job
         run: |
-          microk8s kubectl apply -f k8s/airflow.yaml
+          microk8s kubectl delete job airflow-db-migrate -n airflow --ignore-not-found
+          microk8s kubectl apply -f k8s/db-migrate.yaml
+
+      - name: Wait for database migration
+        run: |
+          microk8s kubectl wait --for=condition=complete job/airflow-db-migrate -n airflow --timeout=10m
+
+      - name: Apply Airflow workloads
+        run: |
+          microk8s kubectl apply -f k8s/airflow.yaml -f k8s/scheduler.yaml -f k8s/dag-processor.yaml
 
       - name: Wait for PVCs to bind
         run: |
@@ -42,10 +51,18 @@ jobs:
             --for=jsonpath='{.status.phase}'=Bound \
             pvc/airflow-dags-pvc --timeout=5m
 
-      - name: Track Webserver Rollout Status
+      - name: Track api-server rollout
         run: |
-          echo "Monitoring application startup..."
+          echo "Monitoring api-server startup..."
           microk8s kubectl rollout status deployment/airflow-webserver -n airflow --timeout=5m
+
+      - name: Track scheduler rollout
+        run: |
+          microk8s kubectl rollout status deployment/airflow-scheduler -n airflow --timeout=5m
+
+      - name: Track dag processor rollout
+        run: |
+          microk8s kubectl rollout status deployment/airflow-dag-processor -n airflow --timeout=5m
 
       - name: Verify cluster state
         if: always()
