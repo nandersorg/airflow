@@ -39,6 +39,7 @@ spec:
       storage: 2Gi
   storageClassName: microk8s-hostpath
 ---
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -59,21 +60,20 @@ spec:
         app: airflow
         component: webserver
     spec:
-      initContainers:
-        - name: install-requirements
+      # Changed: Moved pip installation to a runtime command or use an entrypoint wrapper
+      # so dependencies are preserved in the running webserver container.
+      containers:
+        - name: webserver
           image: apache/airflow:2.8.2-python3.11
           command:
             - /bin/bash
             - -c
-            - "pip install --no-cache-dir -r /tmp/requirements.txt"
-          volumeMounts:
-            - mountPath: /tmp
-              name: requirements-volume
-      containers:
-        - name: webserver
-          image: apache/airflow:2.8.2-python3.11
+            - |
+              pip install --no-cache-dir -r /tmp/requirements.txt
+              exec airflow webserver
           ports:
-            - containerPort: 3003
+            - containerPort: 8080 # Changed to Airflow's native internal port
+              name: webserver
           env:
             - name: AIRFLOW_HOME
               value: /home/airflow
@@ -117,6 +117,8 @@ spec:
               name: dags-volume
             - mountPath: /home/airflow
               name: airflow-home
+            - mountPath: /tmp
+              name: requirements-volume
           resources:
             requests:
               cpu: "500m"
@@ -127,8 +129,8 @@ spec:
           livenessProbe:
             httpGet:
               path: /health
-              port: 3003
-            initialDelaySeconds: 60
+              port: 8080 # Target native port
+            initialDelaySeconds: 90 # Increased slightly to allow pip install time to settle
             periodSeconds: 10
             failureThreshold: 3
       volumes:
@@ -154,7 +156,7 @@ spec:
     app: airflow
     component: webserver
   ports:
-    - port: 3003
-      targetPort: 3003
+    - port: 3003 # Keeps external loadbalancer port mapping intact
+      targetPort: 8080 # Maps down to the correct internal container port
       name: http
   type: LoadBalancer
