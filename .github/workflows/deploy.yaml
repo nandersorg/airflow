@@ -17,7 +17,7 @@ jobs:
         run: |
           microk8s kubectl apply -f k8s/namespace.yaml
           # Wait until the namespace exists and is ready for mutations
-          microk8s kubectl wait --for=condition=active namespace/airflow --timeout=15s
+          microk8s kubectl wait --for=create namespace/airflow --timeout=15s
 
       - name: Create or update airflow-secret
         run: |
