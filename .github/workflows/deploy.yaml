@@ -34,6 +34,13 @@ jobs:
             --namespace=airflow \
             --dry-run=client -o yaml | microk8s kubectl apply -f -
 
+      - name: Create or update airflow-api-secret
+        run: |
+          microk8s kubectl create secret generic airflow-api-secret \
+            --from-literal=JWT_SECRET="${{ secrets.AIRFLOW_API_JWT_SECRET }}" \
+            --namespace=airflow \
+            --dry-run=client -o yaml | microk8s kubectl apply -f -
+
       - name: Create or update airflow-requirements
         run: |
           microk8s kubectl create configmap airflow-requirements \

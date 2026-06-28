@@ -10,6 +10,8 @@
 - `db-migrate.yaml` — metadata database migration job
 
 The deploy workflow creates `airflow-dags` and `airflow-src` configmaps from the checked-in DAGs and local modules.
+Airflow pods also set `AIRFLOW__CORE__HOSTNAME_CALLABLE=airflow.utils.net.get_host_ip_address` so served logs can resolve worker hostnames in Kubernetes.
+All Airflow pods also share `AIRFLOW__API__BASE_URL` and `AIRFLOW__API_AUTH__JWT_SECRET` so the Execution API can authenticate task runners consistently.
 
 ### Quick start
 

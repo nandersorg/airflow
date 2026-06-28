@@ -15,6 +15,7 @@ spec:
         app: airflow
         component: scheduler
     spec:
+      hostname: airflow-scheduler
       initContainers:
         - name: install-requirements
           image: apache/airflow:3.2.2-python3.11
@@ -67,6 +68,20 @@ spec:
                   key: DATABASE_URL
             - name: AIRFLOW__CORE__EXECUTOR
               value: LocalExecutor
+            - name: AIRFLOW__CORE__HOSTNAME_CALLABLE
+              value: airflow.utils.net.getfqdn
+            - name: AIRFLOW__API__BASE_URL
+              value: http://airflow-webserver.airflow.svc.cluster.local:3003
+            - name: AIRFLOW__API__SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: airflow-api-secret
+                  key: JWT_SECRET
+            - name: AIRFLOW__API_AUTH__JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: airflow-api-secret
+                  key: JWT_SECRET
             - name: OLLAMA_HOST
               value: http://ollama-lb.gobble.svc.cluster.local:11434
             - name: NOS_BASE_URL
@@ -111,3 +126,20 @@ spec:
         - name: requirements-volume
           configMap:
             name: airflow-requirements
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow-scheduler
+  namespace: airflow
+  labels:
+    app: airflow
+    component: scheduler
+spec:
+  selector:
+    app: airflow
+    component: scheduler
+  ports:
+    - port: 8793
+      targetPort: 8793
+      name: log-server

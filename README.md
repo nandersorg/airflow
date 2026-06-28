@@ -15,8 +15,9 @@ Navigate to **Settings → Secrets and variables → Actions** and add:
 | `AIRFLOW_DATABASE_URL` | Database connection string | Use PostgreSQL for Kubernetes: `postgresql://airflow:password@postgres.postgresql.svc.cluster.local:5432/postgres` |
 | `AIRFLOW_ADMIN_USERNAME` | Airflow UI admin username | `admin` |
 | `AIRFLOW_ADMIN_PASSWORD` | Airflow UI admin password | A strong random password |
+| `AIRFLOW_API_JWT_SECRET` | Shared Airflow API JWT signing secret | A long random secret shared by all Airflow pods |
 
-The deploy workflow publishes the DAGs and local Python modules into `airflow-dags` and `airflow-src`, and a bootstrap job reads `airflow-admin-secret` to create the UI login.
+The deploy workflow publishes the DAGs and local Python modules into `airflow-dags` and `airflow-src`, and it also sets a shared API JWT secret so task execution and served logs work across all Airflow pods.
 
 **For SQLite (local development only):**
 ```

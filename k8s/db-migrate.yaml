@@ -53,6 +53,20 @@ spec:
                   key: DATABASE_URL
             - name: AIRFLOW__CORE__EXECUTOR
               value: LocalExecutor
+            - name: AIRFLOW__CORE__HOSTNAME_CALLABLE
+              value: airflow.utils.net.get_host_ip_address
+            - name: AIRFLOW__API__BASE_URL
+              value: http://airflow-webserver.airflow.svc.cluster.local:3003
+            - name: AIRFLOW__API__SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: airflow-api-secret
+                  key: JWT_SECRET
+            - name: AIRFLOW__API_AUTH__JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: airflow-api-secret
+                  key: JWT_SECRET
             # Inladen van de admin secrets uit de nieuwe secret naam van deploy.yaml
             - name: NEW_ADMIN_USER
               valueFrom:
