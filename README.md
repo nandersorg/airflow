@@ -16,7 +16,7 @@ Navigate to **Settings → Secrets and variables → Actions** and add:
 | `AIRFLOW_ADMIN_USERNAME` | Airflow UI admin username | `admin` |
 | `AIRFLOW_ADMIN_PASSWORD` | Airflow UI admin password | A strong random password |
 
-The deploy job also installs `apache-airflow-providers-fab`, which is required for the Airflow `users` CLI commands used to bootstrap the UI login.
+The deploy workflow publishes the DAGs and local Python modules into `airflow-dags` and `airflow-src`, and a bootstrap job reads `airflow-admin-secret` to create the UI login.
 
 **For SQLite (local development only):**
 ```
@@ -81,7 +81,6 @@ Then open http://localhost:3003
     # Apply the migration job first, then the workloads
     microk8s kubectl apply -f k8s/db-migrate.yaml
     microk8s kubectl wait --for=condition=complete job/airflow-db-migrate -n airflow --timeout=10m
-    microk8s kubectl apply -f k8s/admin-user.yaml
     microk8s kubectl wait --for=condition=complete job/airflow-admin-bootstrap -n airflow --timeout=10m
     microk8s kubectl apply -f k8s/airflow.yaml -f k8s/scheduler.yaml -f k8s/dag-processor.yaml
    ```
@@ -138,8 +137,3 @@ pre-commit run --all-files
 ```
 
 Validates YAML syntax and prevents secret commits.
-
-```bash
-pre-commit install
-pre-commit run --all-files
-```

@@ -41,6 +41,20 @@ jobs:
             --namespace=airflow \
             --dry-run=client -o yaml | microk8s kubectl apply -f -
 
+      - name: Create or update airflow-dags
+        run: |
+          microk8s kubectl create configmap airflow-dags \
+            --from-file=dags/ \
+            --namespace=airflow \
+            --dry-run=client -o yaml | microk8s kubectl apply -f -
+
+      - name: Create or update airflow-src
+        run: |
+          microk8s kubectl create configmap airflow-src \
+            --from-file=src/ \
+            --namespace=airflow \
+            --dry-run=client -o yaml | microk8s kubectl apply -f -
+
       - name: Apply db migration job
         run: |
           # De oude job opruimen is verplicht, anders weigert Kubernetes de migratie opnieuw te draaien
@@ -55,13 +69,6 @@ jobs:
       - name: Apply Airflow workloads
         run: |
           microk8s kubectl apply -f k8s/airflow.yaml -f k8s/scheduler.yaml -f k8s/dag-processor.yaml
-
-      - name: Wait for PVCs to bind
-        run: |
-          echo "Waiting for airflow-dags-pvc to bind..."
-          microk8s kubectl wait --namespace=airflow \
-            --for=jsonpath='{.status.phase}'=Bound \
-            pvc/airflow-dags-pvc --timeout=5m
 
       - name: Track api-server rollout
         run: |

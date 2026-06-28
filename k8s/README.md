@@ -4,12 +4,12 @@
 
 - `namespace.yaml` — Airflow namespace
 - `airflow.yaml` — Airflow api-server deployment, service, and PVC
+- `airflow.yaml` — Airflow api-server deployment, service, and configmap-backed DAG mounts
 - `scheduler.yaml` — Airflow scheduler deployment
 - `dag-processor.yaml` — Airflow DAG processor deployment
 - `db-migrate.yaml` — metadata database migration job
-- `admin-user.yaml` — Airflow admin user bootstrap job
 
-The admin bootstrap job relies on the FAB provider so the `airflow users` CLI is available during deployment.
+The deploy workflow creates `airflow-dags` and `airflow-src` configmaps from the checked-in DAGs and local modules.
 
 ### Quick start
 
@@ -20,7 +20,6 @@ cd /home/nander/repos/airflow
 microk8s kubectl apply -f k8s/namespace.yaml
 microk8s kubectl apply -f k8s/db-migrate.yaml
 microk8s kubectl wait --for=condition=complete job/airflow-db-migrate -n airflow --timeout=10m
-microk8s kubectl apply -f k8s/admin-user.yaml
 microk8s kubectl wait --for=condition=complete job/airflow-admin-bootstrap -n airflow --timeout=10m
 microk8s kubectl apply -f k8s/airflow.yaml -f k8s/scheduler.yaml -f k8s/dag-processor.yaml
 
@@ -38,5 +37,5 @@ Then open http://localhost:3003
 
 - api-server uses `LocalExecutor` (single-machine)
 - Database uses PostgreSQL in Kubernetes; SQLite only for local single-process development
-- DAGs mounted via PVC from hostpath storage
+- DAGs and local helper modules mounted from configmaps created by the deploy workflow
 - Ollama service accessed at `http://ollama-lb.gobble.svc.cluster.local:11434`

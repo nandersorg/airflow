@@ -63,6 +63,8 @@ spec:
           volumeMounts:
             - mountPath: /home/airflow/dags
               name: dags-volume
+            - mountPath: /home/airflow/src
+              name: src-volume
             - mountPath: /home/airflow
               name: airflow-home
             - mountPath: /home/airflow/.local
@@ -76,8 +78,11 @@ spec:
               memory: "1Gi"
       volumes:
         - name: dags-volume
-          persistentVolumeClaim:
-            claimName: airflow-dags-pvc
+          configMap:
+            name: airflow-dags
+        - name: src-volume
+          configMap:
+            name: airflow-src
         - name: airflow-home
           emptyDir: {}
         - name: airflow-user-site
