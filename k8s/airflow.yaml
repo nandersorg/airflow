@@ -44,12 +44,37 @@ spec:
               name: requirements-volume
             - mountPath: /home/airflow/.local
               name: airflow-user-site
+
+        - name: init-db-and-admin
+          image: apache/airflow:3.2.2-python3.11
+          env:
+            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+              valueFrom:
+                secretKeyRef:
+                  name: airflow-secret
+                  key: DATABASE_URL
+          command:
+            - /bin/bash
+            - -c
+            - |
+              echo "Initializing database..."
+              airflow db migrate
+
+              echo "Creating admin user..."
+              # Dit commando is idempotent; als de user al bestaat faalt het niet hard
+              airflow users create \
+                --username admin \
+                --firstname Admin \
+                --lastname User \
+                --role Admin \
+                --email admin@nandersorg.local \
+                --password adminpass || echo "User might already exist."
       containers:
         - name: webserver
           image: apache/airflow:3.2.2-python3.11
           command:
             - airflow
-            - api-server
+            - fastapi-api-server
             - --host
             - 0.0.0.0
             - --port
@@ -84,31 +109,6 @@ spec:
               name: airflow-home
             - mountPath: /home/airflow/.local
               name: airflow-user-site
-          resources:
-            requests:
-              cpu: "500m"
-              memory: "1Gi"
-            limits:
-              cpu: "1"
-              memory: "2Gi"
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 8080
-            initialDelaySeconds: 90
-            periodSeconds: 10
-            failureThreshold: 3
-      volumes:
-        - name: dags-volume
-          persistentVolumeClaim:
-            claimName: airflow-dags-pvc
-        - name: airflow-home
-          emptyDir: {}
-        - name: airflow-user-site
-          emptyDir: {}
-        - name: requirements-volume
-          configMap:
-            name: airflow-requirements
 ---
 apiVersion: v1
 kind: Service
