@@ -48,15 +48,6 @@ jobs:
         run: |
           microk8s kubectl wait --for=condition=complete job/airflow-db-migrate -n airflow --timeout=10m
 
-      - name: Apply admin user bootstrap job
-        run: |
-          microk8s kubectl delete job airflow-admin-bootstrap -n airflow --ignore-not-found
-          microk8s kubectl apply -f k8s/admin-user.yaml
-
-      - name: Wait for admin user bootstrap
-        run: |
-          microk8s kubectl wait --for=condition=complete job/airflow-admin-bootstrap -n airflow --timeout=10m
-
       - name: Apply Airflow workloads
         run: |
           microk8s kubectl apply -f k8s/airflow.yaml -f k8s/scheduler.yaml -f k8s/dag-processor.yaml
