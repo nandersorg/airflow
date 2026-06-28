@@ -42,14 +42,13 @@ def scrape_and_analyze(**context):
         results.append(result)
         print(f"  {article['title'][:60]}... → {sentiment}")
 
-    # Store results in XCom for downstream tasks
-    context["task_instance"].xcom_push(key="sentiment_results", value=results)
-    return results
+    print(f"Completed sentiment analysis for {len(results)} articles")
 
 
 scrape_task = PythonOperator(
     task_id="scrape_and_analyze",
     python_callable=scrape_and_analyze,
+    do_xcom_push=False,
     dag=dag,
 )
 
