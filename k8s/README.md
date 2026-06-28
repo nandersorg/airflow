@@ -9,6 +9,8 @@
 - `db-migrate.yaml` — metadata database migration job
 - `admin-user.yaml` — Airflow admin user bootstrap job
 
+The admin bootstrap job relies on the FAB provider so the `airflow users` CLI is available during deployment.
+
 ### Quick start
 
 ```bash

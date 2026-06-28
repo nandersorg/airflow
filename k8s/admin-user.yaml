@@ -41,9 +41,8 @@ spec:
                 --email "${email}" \
                 --firstname "${firstname}" \
                 --lastname "${lastname}" \
-                --role Admin
-
-              airflow users add-role --username "${username}" --role Admin || true
+                --role Admin \
+              || airflow users reset-password --username "${username}" --password "${password}"
           env:
             - name: AIRFLOW_HOME
               value: /home/airflow

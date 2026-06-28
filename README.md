@@ -16,6 +16,8 @@ Navigate to **Settings → Secrets and variables → Actions** and add:
 | `AIRFLOW_ADMIN_USERNAME` | Airflow UI admin username | `admin` |
 | `AIRFLOW_ADMIN_PASSWORD` | Airflow UI admin password | A strong random password |
 
+The deploy job also installs `apache-airflow-providers-fab`, which is required for the Airflow `users` CLI commands used to bootstrap the UI login.
+
 **For SQLite (local development only):**
 ```
 sqlite:////home/airflow/airflow.db
