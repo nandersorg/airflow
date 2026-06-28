@@ -27,6 +27,26 @@ spec:
               name: requirements-volume
             - mountPath: /home/airflow/.local
               name: airflow-user-site
+        - name: sync-dags
+          image: apache/airflow:3.2.2-python3.11
+          command:
+            - /bin/bash
+            - -c
+            - |
+              mkdir -p /home/airflow/dags /home/airflow/src
+              cp -L /config/dags/* /home/airflow/dags/
+              cp -L /config/src/* /home/airflow/src/
+          volumeMounts:
+            - mountPath: /config/dags
+              name: dags-config-volume
+              readOnly: true
+            - mountPath: /config/src
+              name: src-config-volume
+              readOnly: true
+            - mountPath: /home/airflow/dags
+              name: dags-volume
+            - mountPath: /home/airflow/src
+              name: src-volume
       containers:
         - name: scheduler
           image: apache/airflow:3.2.2-python3.11
@@ -74,12 +94,16 @@ spec:
               cpu: "500m"
               memory: "1Gi"
       volumes:
-        - name: dags-volume
+        - name: dags-config-volume
           configMap:
             name: airflow-dags
-        - name: src-volume
+        - name: src-config-volume
           configMap:
             name: airflow-src
+        - name: dags-volume
+          emptyDir: {}
+        - name: src-volume
+          emptyDir: {}
         - name: airflow-home
           emptyDir: {}
         - name: airflow-user-site
