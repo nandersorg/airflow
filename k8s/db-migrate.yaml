@@ -64,9 +64,12 @@ spec:
                 secretKeyRef:
                   name: airflow-admin-secret
                   key: PASSWORD
-            # Essentieel voor Airflow 3.x backend validatie
             - name: _AIRFLOW_DB_MIGRATION
               value: "true"
+            - name: AIRFLOW__CORE__AUTH_MANAGER
+              value: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
+            - name: AIRFLOW__FAB__AUTH_TYPE
+              value: "database"
           volumeMounts:
             - mountPath: /home/airflow
               name: airflow-home
