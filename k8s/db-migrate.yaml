@@ -23,10 +23,22 @@ spec:
       containers:
         - name: migrate
           image: apache/airflow:3.2.2-python3.11
+          # Gewijzigd naar bash om zowel de migratie als de admin user aan te maken
           command:
-            - airflow
-            - db
-            - migrate
+            - /bin/bash
+            - -c
+            - |
+              echo "Running database migrations..."
+              airflow db migrate
+
+              echo "Creating admin user from GitHub Secrets..."
+              airflow users create \
+                --username "$NEW_ADMIN_USER" \
+                --firstname Admin \
+                --lastname User \
+                --role Admin \
+                --email admin@nandersorg.local \
+                --password "$NEW_ADMIN_PASS" || echo "User might already exist."
           env:
             - name: AIRFLOW_HOME
               value: /home/airflow
@@ -41,6 +53,20 @@ spec:
                   key: DATABASE_URL
             - name: AIRFLOW__CORE__EXECUTOR
               value: LocalExecutor
+            # Inladen van de admin secrets uit de nieuwe secret naam van deploy.yaml
+            - name: NEW_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: airflow-admin-secret
+                  key: USERNAME
+            - name: NEW_ADMIN_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: airflow-admin-secret
+                  key: PASSWORD
+            # Essentieel voor Airflow 3.x backend validatie
+            - name: _AIRFLOW_DB_MIGRATION
+              value: "true"
           volumeMounts:
             - mountPath: /home/airflow
               name: airflow-home
