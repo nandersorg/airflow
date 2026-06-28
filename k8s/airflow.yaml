@@ -48,7 +48,7 @@ spec:
           image: apache/airflow:3.2.2-python3.11
           command:
             - airflow
-            - fastapi-api-server
+            - api-server
             - --host
             - 0.0.0.0
             - --port
