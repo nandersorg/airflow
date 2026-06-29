@@ -77,6 +77,12 @@ jobs:
         run: |
           microk8s kubectl apply -f k8s/airflow.yaml -f k8s/scheduler.yaml -f k8s/dag-processor.yaml
 
+      - name: Restart Airflow workloads to pick up updated DAGs
+        run: |
+          microk8s kubectl rollout restart deployment/airflow-webserver -n airflow
+          microk8s kubectl rollout restart deployment/airflow-scheduler -n airflow
+          microk8s kubectl rollout restart deployment/airflow-dag-processor -n airflow
+
       - name: Track api-server rollout
         run: |
           echo "Monitoring api-server startup..."
