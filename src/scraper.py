@@ -1,17 +1,21 @@
-"""
-Scraper for NOS.nl using RSS Feeds.
+"""Scraper for NOS.nl using RSS Feeds.
+
 ===================================
 
 This module provides functionality to extract article metadata from the official
-NOS RSS streams, bypassing fragile HTML scraping patterns and cleansing text
-payloads for down-stream SLM ingestion.
+NOS RSS streams based on specific news categories, bypassing fragile HTML scraping
+patterns and cleansing text payloads for down-stream SLM ingestion.
 """
 
-import os
+from __future__ import annotations
+
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 from typing import Dict, List
 import requests
+
+# Importeer de feed-configuratie en types uit je sentiment-module
+from src.sentiment import NOS_RSS_FEEDS, NEWS_CATEGORY
 
 
 class HTMLTagStripper(HTMLParser):
@@ -44,17 +48,23 @@ def strip_html_tags(html_content: str) -> str:
     return stripper.get_data().strip()
 
 
-def scrape_nos_articles(max_articles: int = 10) -> List[Dict[str, str]]:
-    """Fetch article titles, descriptions, and URLs from the official NOS RSS feed.
+def scrape_nos_articles(
+    category: NEWS_CATEGORY = "VOORPAGINA", max_articles: int = 3
+) -> List[Dict[str, str]]:
+    """Fetch article titles, descriptions, and URLs from a specific NOS RSS feed.
 
+    :param category: The target NOS section (e.g., 'SPORT', 'POLITIEK').
+        Defaults to 'VOORPAGINA'.
+    :type category: NEWS_CATEGORY
     :param max_articles: Maximum number of articles to extract from the stream,
-        defaults to 10.
+        defaults to 3.
     :type max_articles: int, optional
     :return: A list of dictionaries containing structured, text-cleansed article nodes.
     :rtype: List[Dict[str, str]]
-    :raises requests.RequestException: If the network connection or HTTP request fails.
     """
-    rss_url = os.getenv("NOS_RSS_URL", "http://feeds.nos.nl/nosnieuwsalgemeen")
+    # Haal de dynamische URL op op basis van de meegegeven categorie
+    rss_url = NOS_RSS_FEEDS.get(category, None)
+    print(f"Fetching articles from [{category}] RSS feed: {rss_url}")
 
     try:
         headers = {
@@ -65,7 +75,7 @@ def scrape_nos_articles(max_articles: int = 10) -> List[Dict[str, str]]:
         response = requests.get(rss_url, headers=headers, timeout=10)
         response.raise_for_status()
     except requests.RequestException as e:
-        print(f"Network error targeting context endpoint: {e}")
+        print(f"Network error targeting context endpoint [{category}]: {e}")
         return []
 
     articles = []
@@ -88,25 +98,26 @@ def scrape_nos_articles(max_articles: int = 10) -> List[Dict[str, str]]:
             # Run the description payload through the HTML text filter
             cleaned_description = strip_html_tags(raw_description)
 
-            if title and cleaned_description:
+            if title:
                 articles.append(
                     {
                         "title": title,
                         "description": cleaned_description,
                         "url": url,
+                        "category": category,
                     }
                 )
 
     except ET.ParseError as e:
-        print(f"XML Tree parsing crash: {e}")
+        print(f"XML Tree parsing crash for category [{category}]: {e}")
 
     return articles
 
 
 if __name__ == "__main__":
-    # Quick execution sanity check
-    news_items = scrape_nos_articles(max_articles=3)
-    for idx, item in enumerate(news_items, 1):
-        print(f"\n[{idx}] {item['title']}")
-        print(f"    {item['url']}")
-        print(f"    {item['description']}\n")
+    # Test-run om te zien of het schakelen tussen feeds goed gaat
+    for cat in ["VOORPAGINA", "SPORT", "POLITIEK"]:
+        print(f"\n--- SCRAPING CATEGORY: {cat} ---")
+        news_items = scrape_nos_articles(category=cat, max_articles=2)
+        for idx, item in enumerate(news_items, 1):
+            print(f"  [{idx}] {item['title']} (Cat: {item['category']})")

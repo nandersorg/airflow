@@ -8,7 +8,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from src.scraper import scrape_nos_articles
-from src.sentiment import analyze_sentiment
+from src.sentiment import analyze_sentiment, NOS_RSS_FEEDS
 
 default_args = {
     "owner": "nander",
@@ -28,12 +28,16 @@ dag = DAG(
 
 def scrape_and_analyze(**context):
     """Scrape NOS articles and run sentiment analysis."""
-    articles = scrape_nos_articles()
-    print(f"Scraped {len(articles)} articles from NOS.nl")
+    articles = []
+    for feed in NOS_RSS_FEEDS:
+        new_articles = scrape_nos_articles(category=feed, max_articles=10)
+        articles.extend(new_articles)
 
     results = []
     for article in articles:
-        sentiment = analyze_sentiment(article["title"], article["description"])
+        sentiment = analyze_sentiment(
+            article["title"], category=article["category"]
+        )
         result = {
             **article,
             "sentiment": sentiment,
