@@ -1,57 +1,91 @@
-"""Sentiment analysis using Ollama."""
+"""Sentiment analysis using Ollama.
 
-import requests
+This module sends NOS article text to Ollama and maps the returned score to a
+trinary sentiment label for the DAG.
+"""
+
+from __future__ import annotations
+
 import os
 from typing import Literal
 
+import requests
 
-def analyze_sentiment(
-    title: str, description: str
-) -> Literal["POSITIVE", "NEGATIVE"]:
-    """Analyze sentiment of an article using Ollama.
+DEFAULT_OLLAMA_HOST = "http://ollama-lb.gobble.svc.cluster.local:11434"
+DEFAULT_SENTIMENT_MODEL = "gemma2:2b"
 
-    Args:
-        title: Article title
-        description: Article description
+# Uitgebreid met NEUTRAL
+SentimentLabel = Literal["POSITIVE", "NEGATIVE", "NEUTRAL"]
 
-    Returns:
-        'POSITIVE' or 'NEGATIVE'
+
+def analyze_sentiment(title: str, description: str) -> SentimentLabel | None:
+    """Analyze the sentiment of an article using ONLY the title.
+
+    :param title: Article title.
+    :type title: str
+    :param description: Article description (ignored to reduce noise).
+    :type description: str
+    :returns: ``POSITIVE``, ``NEGATIVE``, ``NEUTRAL`` or ``None`` on failure.
+    :rtype: SentimentLabel | None
     """
-    ollama_host = os.getenv(
-        "OLLAMA_HOST", "http://ollama-lb.gobble.svc.cluster.local:11434"
-    )
-    model = os.getenv("SENTIMENT_MODEL", "llama3.2:1b")
+    ollama_host = os.getenv("OLLAMA_HOST", DEFAULT_OLLAMA_HOST)
+    model = os.getenv("SENTIMENT_MODEL", DEFAULT_SENTIMENT_MODEL)
 
-    prompt = (
-        f"Analyze the sentiment of this news article. "
-        f"Reply with ONLY 'POSITIVE' or 'NEGATIVE'.\n\n"
-        f"Title: {title}\n"
-        f"Description: {description}"
+    print(
+        f"Querying Ollama at {ollama_host} with chat model {model} (Title only)..."
     )
+
+    system_message = (
+        "Je bent een kille, objectieve data-parser. Je classificeert de emotionele impact van een nieuwskop.\n\n"
+        "Kies ALTIJD uit exact één van deze drie labels:\n"
+        "- NEGATIVE: Expliciet negatieve gebeurtenissen zoals menselijk leed, misdaad, moord, ongelukken, deportaties, oorlog, grote crisissen of zware schandalen.\n"
+        "- POSITIVE: Expliciet positieve gebeurtenissen zoals sportoverwinningen, feestelijkheden, grote successen, vrolijk nieuws of mooie doorbraken.\n"
+        "- NEUTRAL: Al het overige nieuws. Denk aan algemene politieke plannen, zakelijke updates, economische verschuivingen, droge maatschappelijke ontwikkelingen (zoals stroomnetten of defensiekoersen), of media-aankondigingen.\n\n"
+        "Regels:\n"
+        "1. Antwoord met exact één woord: POSITIVE, NEGATIVE of NEUTRAL\n"
+        "2. Geef GEEN uitleg, GEEN introductie, GEEN interpunctie.\n"
+        "3. Als de kop puur feitelijk, zakelijk of informatief is zonder duidelijke tragedie of feest, kies dan ALTIJD NEUTRAL."
+    )
+
+    # We sturen nu ALLEEN de titel mee om ruis uit de beschrijving te voorkomen
+    user_message = f"Nieuwskop: {title}"
 
     try:
         response = requests.post(
-            f"{ollama_host}/api/generate",
+            f"{ollama_host}/api/chat",
             json={
                 "model": model,
-                "prompt": prompt,
+                "messages": [
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": user_message},
+                ],
                 "stream": False,
+                "options": {
+                    "temperature": 0.0,
+                    "num_predict": 5,
+                },
             },
             timeout=60,
         )
         response.raise_for_status()
 
         result = response.json()
-        sentiment_text = result.get("response", "").strip().upper()
+        message_content = (
+            result.get("message", {}).get("content", "").strip().upper()
+        )
 
-        if "POSITIVE" in sentiment_text:
+        if "POSITIVE" in message_content:
             return "POSITIVE"
-        elif "NEGATIVE" in sentiment_text:
+        if "NEGATIVE" in message_content:
             return "NEGATIVE"
-        else:
-            # Default to NEGATIVE if unclear
-            print(f"Unclear sentiment response: {sentiment_text}")
-            return "NEGATIVE"
-    except requests.RequestException as e:
-        print(f"Error querying Ollama: {e}")
-        return "NEGATIVE"
+        if "NEUTRAL" in message_content:
+            return "NEUTRAL"
+
+        print(
+            f"Model did not return a valid label. Raw output: {message_content}"
+        )
+        return None
+
+    except requests.RequestException as exc:
+        print(f"Error querying Ollama sentiment: {exc}")
+        return None
