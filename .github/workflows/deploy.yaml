@@ -36,8 +36,13 @@ jobs:
 
       - name: Create or update airflow-api-secret
         run: |
+          JWT_SECRET='${{ secrets.AIRFLOW_API_JWT_SECRET }}'
+          if [ -z "$JWT_SECRET" ]; then
+            JWT_SECRET=$(openssl rand -hex 32)
+            echo "AIRFLOW_API_JWT_SECRET was empty; generated a fallback secret for this deploy."
+          fi
           microk8s kubectl create secret generic airflow-api-secret \
-            --from-literal=JWT_SECRET="${{ secrets.AIRFLOW_API_JWT_SECRET }}" \
+            --from-literal=JWT_SECRET="$JWT_SECRET" \
             --namespace=airflow \
             --dry-run=client -o yaml | microk8s kubectl apply -f -
 
@@ -64,7 +69,6 @@ jobs:
 
       - name: Apply db migration job
         run: |
-          # De oude job opruimen is verplicht, anders weigert Kubernetes de migratie opnieuw te draaien
           microk8s kubectl delete job airflow-db-migrate -n airflow --ignore-not-found
           microk8s kubectl apply -f k8s/db-migrate.yaml
 
