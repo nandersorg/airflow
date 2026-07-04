@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from src.scraper import scrape_nos_articles
 from src.sentiment import analyze_sentiment, NOS_RSS_FEEDS
+from src.storage import persist_article_sentiment
 
 default_args = {
     "owner": "nander",
@@ -38,13 +39,23 @@ def scrape_and_analyze(**context):
         sentiment = analyze_sentiment(
             article["title"], category=article["category"]
         )
+        analyzed_at = datetime.now(timezone.utc)
         result = {
             **article,
             "sentiment": sentiment,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "analyzed_at": analyzed_at,
+            "timestamp": analyzed_at.isoformat(),
         }
         results.append(result)
         print(f"  {article['title'][:60]}... → {sentiment}")
+
+        if sentiment is None:
+            print(
+                f"  Skipping persistence for article without sentiment: {article['title'][:60]}..."
+            )
+            continue
+
+        persist_article_sentiment(result)
 
     print(f"Completed sentiment analysis for {len(results)} articles")
 

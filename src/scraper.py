@@ -9,9 +9,11 @@ patterns and cleansing text payloads for down-stream SLM ingestion.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
-from typing import Dict, List
+from typing import Any
 import requests
 
 # Importeer de feed-configuratie en types uit je sentiment-module
@@ -50,7 +52,7 @@ def strip_html_tags(html_content: str) -> str:
 
 def scrape_nos_articles(
     category: NEWS_CATEGORY = "VOORPAGINA", max_articles: int = 3
-) -> List[Dict[str, str]]:
+) -> list[dict[str, Any]]:
     """Fetch article titles, descriptions, and URLs from a specific NOS RSS feed.
 
     :param category: The target NOS section (e.g., 'SPORT', 'POLITIEK').
@@ -88,12 +90,25 @@ def scrape_nos_articles(
             title_node = item.find("title")
             desc_node = item.find("description")
             url_node = item.find("link")
+            published_node = item.find("pubDate")
 
             title = title_node.text.strip() if title_node is not None else ""
             raw_description = (
                 desc_node.text.strip() if desc_node is not None else ""
             )
             url = url_node.text.strip() if url_node is not None else ""
+            published_at = None
+            if published_node is not None and published_node.text:
+                try:
+                    published_at = parsedate_to_datetime(
+                        published_node.text.strip()
+                    )
+                    if published_at.tzinfo is None:
+                        published_at = published_at.replace(
+                            tzinfo=timezone.utc
+                        )
+                except (TypeError, ValueError):
+                    published_at = None
 
             # Run the description payload through the HTML text filter
             cleaned_description = strip_html_tags(raw_description)
@@ -105,6 +120,9 @@ def scrape_nos_articles(
                         "description": cleaned_description,
                         "url": url,
                         "category": category,
+                        "source": "NOS",
+                        "published_at": published_at,
+                        "scraped_at": datetime.now(timezone.utc),
                     }
                 )
 

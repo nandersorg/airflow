@@ -26,6 +26,7 @@ jobs:
         run: |
           microk8s kubectl create secret generic airflow-secret \
             --from-literal=DATABASE_URL='${{ secrets.AIRFLOW_DATABASE_URL }}' \
+            --from-literal=RESULTS_DATABASE_URL='${{ secrets.AIRFLOW_RESULTS_DATABASE_URL }}' \
             --namespace=airflow \
             --dry-run=client -o yaml | microk8s kubectl apply -f -
 
