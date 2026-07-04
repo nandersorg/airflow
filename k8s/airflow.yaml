@@ -96,7 +96,7 @@ spec:
             - name: NOS_BASE_URL
               value: https://nos.nl
             - name: SENTIMENT_MODEL
-              value: llama3.2:1b
+              value: gemma2:2b
             - name: AIRFLOW__CORE__AUTH_MANAGER
               value: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
             - name: AIRFLOW__FAB__AUTH_TYPE

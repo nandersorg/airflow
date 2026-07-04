@@ -125,7 +125,7 @@ OLLAMA_HOST                           # Ollama service address
 
 # News Sentiment
 NOS_BASE_URL                          # NOS.nl URL (default: https://nos.nl)
-SENTIMENT_MODEL                       # Ollama model (default: llama3.2:1b)
+SENTIMENT_MODEL                       # Ollama model (default: gemma2:2b)
 ```
 
 Local development: See `.env.example` for template.
