@@ -66,6 +66,11 @@ spec:
                 secretKeyRef:
                   name: airflow-secret
                   key: DATABASE_URL
+            - name: RESULTS_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: airflow-secret
+                  key: RESULTS_DATABASE_URL
             - name: AIRFLOW__CORE__EXECUTOR
               value: LocalExecutor
             - name: AIRFLOW__CORE__HOSTNAME_CALLABLE

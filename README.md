@@ -13,6 +13,7 @@ Navigate to **Settings → Secrets and variables → Actions** and add:
 | Secret Name | Description | Example |
 |---|---|---|
 | `AIRFLOW_DATABASE_URL` | Database connection string | Use PostgreSQL for Kubernetes: `postgresql://airflow:password@postgres.postgresql.svc.cluster.local:5432/postgres` |
+| `AIRFLOW_RESULTS_DATABASE_URL` | Shared analytics/news results database | `postgresql://ml_platform:password@postgres.postgresql.svc.cluster.local:5432/ml_platform` |
 | `AIRFLOW_ADMIN_USERNAME` | Airflow UI admin username | `admin` |
 | `AIRFLOW_ADMIN_PASSWORD` | Airflow UI admin password | A strong random password |
 | `AIRFLOW_API_JWT_SECRET` | Shared Airflow API JWT signing secret | A long random secret shared by all Airflow pods |
@@ -119,6 +120,7 @@ AIRFLOW__DATABASE__SQL_ALCHEMY_CONN   # Database connection (from secret)
 AIRFLOW__CORE__DAGS_FOLDER            # DAGs location
 AIRFLOW__CORE__LOAD_EXAMPLES          # Load example DAGs
 AIRFLOW__CORE__EXECUTOR               # Executor (LocalExecutor)
+RESULTS_DATABASE_URL                  # Shared PostgreSQL target for sentiment rows
 
 # Ollama
 OLLAMA_HOST                           # Ollama service address
