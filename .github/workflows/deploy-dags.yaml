@@ -1,0 +1,39 @@
+name: Deploy Airflow DAGs to MicroK8s
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "dags/**"
+      - ".github/workflows/deploy-dags.yaml"
+
+jobs:
+  deploy-dags:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Ensure namespace
+        run: |
+          microk8s kubectl apply -f k8s/namespace.yaml
+          echo "Waiting for namespace to be active..."
+          microk8s kubectl wait --for=create namespace/airflow --timeout=15s
+
+      - name: Create or update airflow-dags configmap
+        run: |
+          microk8s kubectl create configmap airflow-dags \
+            --from-file=dags/ \
+            --namespace=airflow \
+            --dry-run=client -o yaml | microk8s kubectl apply -f -
+
+      - name: Verify cluster state
+        if: always()
+        run: |
+          echo "=== Workload Status ==="
+          microk8s kubectl get pods,svc,pvc -n airflow
+          echo ""
+          echo "To connect to the Airflow 3 Dashboard:"
+          echo "  microk8s kubectl port-forward -n airflow svc/airflow-webserver 3003:3003"
