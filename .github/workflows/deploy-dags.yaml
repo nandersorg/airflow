@@ -53,35 +53,63 @@ jobs:
           echo "Waiting for namespace to be active..."
           microk8s kubectl wait --for=create namespace/airflow --timeout=15s
 
-      - name: Create or update airflow-dags configmap
+      - name: Sync DAG files to cluster PVC
         if: steps.changes.outputs.dags_changed == 'true'
         run: |
-          microk8s kubectl create configmap airflow-dags \
-            --from-file=dags/ \
-            --namespace=airflow \
-            --dry-run=client -o yaml | microk8s kubectl apply -f -
+          echo "Launching temporary DAG sync worker..."
+          microk8s kubectl run dag-sync-worker -n airflow \
+            --image=alpine:latest \
+            --restart=Never \
+            --overrides='{
+              "spec": {
+                "volumes": [{
+                  "name": "dag-vol",
+                  "persistentVolumeClaim": {"claimName": "airflow-dags-pvc"}
+                }],
+                "containers": [{
+                  "name": "sync-container",
+                  "image": "alpine:latest",
+                  "command": ["sleep", "60"],
+                  "volumeMounts": [{"name": "dag-vol", "mountPath": "/mnt/airflow-dags"}]
+                }]
+              }
+            }'
 
-      - name: Create or update airflow-src configmap
+          microk8s kubectl wait --for=condition=Ready pod/dag-sync-worker -n airflow --timeout=30s
+
+          echo "Streaming files into PVC /dags directory..."
+          microk8s kubectl cp dags/. airflow/dag-sync-worker:/mnt/airflow-dags/
+
+          microk8s kubectl delete pod dag-sync-worker -n airflow --wait=false
+
+      - name: Sync source code files to cluster PVC
         if: steps.changes.outputs.src_changed == 'true'
         run: |
-          microk8s kubectl create configmap airflow-src \
-            --from-file=src/ \
-            --namespace=airflow \
-            --dry-run=client -o yaml | microk8s kubectl apply -f -
+          echo "Launching temporary SRC sync worker..."
+          microk8s kubectl run src-sync-worker -n airflow \
+            --image=alpine:latest \
+            --restart=Never \
+            --overrides='{
+              "spec": {
+                "volumes": [{
+                  "name": "src-vol",
+                  "persistentVolumeClaim": {"claimName": "airflow-dags-pvc"}
+                }],
+                "containers": [{
+                  "name": "sync-container",
+                  "image": "alpine:latest",
+                  "command": ["sleep", "60"],
+                  "volumeMounts": [{"name": "src-vol", "mountPath": "/mnt/airflow-src"}]
+                }]
+              }
+            }'
 
-      - name: Restart Airflow after src changes
-        if: steps.changes.outputs.src_changed == 'true'
-        run: |
-          microk8s kubectl rollout restart deployment/airflow-webserver -n airflow
-          microk8s kubectl rollout restart deployment/airflow-scheduler -n airflow
-          microk8s kubectl rollout restart deployment/airflow-dag-processor -n airflow
+          microk8s kubectl wait --for=condition=Ready pod/src-sync-worker -n airflow --timeout=30s
 
-      - name: Wait for Airflow restart after src changes
-        if: steps.changes.outputs.src_changed == 'true'
-        run: |
-          microk8s kubectl rollout status deployment/airflow-webserver -n airflow --timeout=5m
-          microk8s kubectl rollout status deployment/airflow-scheduler -n airflow --timeout=5m
-          microk8s kubectl rollout status deployment/airflow-dag-processor -n airflow --timeout=5m
+          echo "Streaming files into PVC /src directory..."
+          microk8s kubectl cp src/. airflow/src-sync-worker:/mnt/airflow-src/src/
+
+          microk8s kubectl delete pod src-sync-worker -n airflow --wait=false
 
       - name: Verify cluster state
         if: always()
