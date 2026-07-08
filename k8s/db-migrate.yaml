@@ -26,17 +26,21 @@ spec:
             - /bin/bash
             - -c
             - |
+              set -euo pipefail
+
               echo "Running database migrations..."
               airflow db migrate
 
               echo "Creating admin user from GitHub Secrets..."
-              airflow users create \
+              if ! airflow users create \
                 --username "$NEW_ADMIN_USER" \
                 --firstname Admin \
                 --lastname User \
                 --role Admin \
                 --email admin@nandersorg.local \
-                --password "$NEW_ADMIN_PASS" || echo "User might already exist."
+                --password "$NEW_ADMIN_PASS"; then
+                echo "User might already exist."
+              fi
           env:
             - name: AIRFLOW_HOME
               value: /home/airflow

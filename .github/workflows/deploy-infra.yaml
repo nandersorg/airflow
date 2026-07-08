@@ -72,6 +72,7 @@ jobs:
       - name: Apply db migration manifest
         run: |
           microk8s kubectl replace --force -f k8s/db-migrate.yaml 2>/dev/null || microk8s kubectl apply -f k8s/db-migrate.yaml
+          microk8s kubectl wait --for=condition=complete job/airflow-db-migrate -n airflow --timeout=10m
 
       - name: Apply Airflow workloads
         run: |
