@@ -53,6 +53,31 @@ jobs:
           echo "Waiting for namespace to be active..."
           microk8s kubectl wait --for=create namespace/airflow --timeout=15s
 
+      - name: Detect configuration and requirement changes
+        id: config_changes
+        shell: bash
+        run: |
+          # Check if requirements file was modified in the commit
+          if git diff --name-only HEAD~1 HEAD | grep -q 'requirements.txt'; then
+            echo "requirements_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "requirements_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update Airflow dependencies ConfigMap
+        if: steps.config_changes.outputs.requirements_changed == 'true'
+        run: |
+          echo "Requirements updated. Syncing configmap..."
+          microk8s kubectl create configmap airflow-requirements \
+            --from-file=requirements.txt \
+            --namespace=airflow \
+            --dry-run=client -o yaml | microk8s kubectl apply -f -
+
+          echo "Restarting core services to trigger pip install init loop..."
+          microk8s kubectl rollout restart deployment/airflow-dag-processor -n airflow
+          microk8s kubectl rollout restart deployment/airflow-scheduler -n airflow
+          microk8s kubectl rollout restart deployment/airflow-webserver -n airflow
+
       - name: Update airflow-dags configmap
         if: steps.changes.outputs.dags_changed == 'true'
         run: |
