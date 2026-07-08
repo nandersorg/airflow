@@ -22,7 +22,7 @@ spec:
           command:
             - /bin/bash
             - -c
-            - pip install --no-cache-dir --user -r /requirements/requirements.txt
+            - pip install --no-cache-dir -r /requirements/requirements.txt
           volumeMounts:
             - mountPath: /requirements
               name: requirements-volume
