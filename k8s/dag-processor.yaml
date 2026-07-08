@@ -20,7 +20,7 @@ spec:
     spec:
       initContainers:
         - name: sync-dags
-          image: localhost:32000/airflow-custom:latest
+          image: localhost:32000/airflow-custom:3.2.2-python3.11
           command:
             - /bin/bash
             - -c
