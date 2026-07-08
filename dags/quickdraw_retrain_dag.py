@@ -35,7 +35,7 @@ minio_secret_env = [
 with DAG(
     "quickdraw_weekly_retrain",
     default_args=default_args,
-    schedule_interval="@weekly",
+    schedule="@weekly",  # Fixed for Airflow 3 compatibility
     catchup=False,
     tags=["mlops", "quickdraw"],
 ) as dag:
