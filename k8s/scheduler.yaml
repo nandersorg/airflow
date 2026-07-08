@@ -26,8 +26,6 @@ spec:
           volumeMounts:
             - mountPath: /requirements
               name: requirements-volume
-            - mountPath: /home/airflow/.local
-              name: airflow-user-site
         - name: sync-dags
           image: apache/airflow:3.2.2-python3.11
           command:

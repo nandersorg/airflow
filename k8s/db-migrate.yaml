@@ -18,8 +18,6 @@ spec:
           volumeMounts:
             - mountPath: /requirements
               name: requirements-volume
-            - mountPath: /home/airflow/.local
-              name: airflow-user-site
       containers:
         - name: migrate
           image: apache/airflow:3.2.2-python3.11
