@@ -53,69 +53,38 @@ jobs:
           echo "Waiting for namespace to be active..."
           microk8s kubectl wait --for=create namespace/airflow --timeout=15s
 
-      - name: Sync DAG files to cluster PVC
+      - name: Update airflow-dags configmap
         if: steps.changes.outputs.dags_changed == 'true'
         run: |
-          echo "Launching temporary DAG sync worker..."
-          microk8s kubectl run dag-sync-worker -n airflow \
-            --image=alpine:latest \
-            --restart=Never \
-            --overrides='{
-              "spec": {
-                "volumes": [{
-                  "name": "dag-vol",
-                  "persistentVolumeClaim": {"claimName": "airflow-dags-pvc"}
-                }],
-                "containers": [{
-                  "name": "sync-container",
-                  "image": "alpine:latest",
-                  "command": ["sleep", "60"],
-                  "volumeMounts": [{"name": "dag-vol", "mountPath": "/mnt/airflow-dags"}]
-                }]
-              }
-            }'
+          echo "Updating ConfigMap volume with new DAG definitions..."
+          microk8s kubectl create configmap airflow-dags \
+            --from-file=dags/ \
+            --namespace=airflow \
+            --dry-run=client -o yaml | microk8s kubectl apply -f -
 
-          microk8s kubectl wait --for=condition=Ready pod/dag-sync-worker -n airflow --timeout=30s
-
-          echo "Streaming files into PVC /dags directory..."
-          microk8s kubectl cp dags/. airflow/dag-sync-worker:/mnt/airflow-dags/
-
-          microk8s kubectl delete pod dag-sync-worker -n airflow --wait=false
-
-      - name: Sync source code files to cluster PVC
+      - name: Update airflow-src configmap
         if: steps.changes.outputs.src_changed == 'true'
         run: |
-          echo "Launching temporary SRC sync worker..."
-          microk8s kubectl run src-sync-worker -n airflow \
-            --image=alpine:latest \
-            --restart=Never \
-            --overrides='{
-              "spec": {
-                "volumes": [{
-                  "name": "src-vol",
-                  "persistentVolumeClaim": {"claimName": "airflow-dags-pvc"}
-                }],
-                "containers": [{
-                  "name": "sync-container",
-                  "image": "alpine:latest",
-                  "command": ["sleep", "60"],
-                  "volumeMounts": [{"name": "src-vol", "mountPath": "/mnt/airflow-src"}]
-                }]
-              }
-            }'
+          echo "Updating ConfigMap volume with new src definitions..."
+          microk8s kubectl create configmap airflow-src \
+            --from-file=src/ \
+            --namespace=airflow \
+            --dry-run=client -o yaml | microk8s kubectl apply -f -
 
-          microk8s kubectl wait --for=condition=Ready pod/src-sync-worker -n airflow --timeout=30s
+      - name: Kick Airflow 3 DAG Processor to trigger hot reload init Containers
+        if: steps.changes.outputs.dags_changed == 'true' || steps.changes.outputs.src_changed == 'true'
+        run: |
+          echo "Kicking DAG processor deployment to run init sync loops..."
+          microk8s kubectl rollout restart deployment/airflow-dag-processor -n airflow
 
-          echo "Streaming files into PVC /src directory..."
-          microk8s kubectl cp src/. airflow/src-sync-worker:/mnt/airflow-src/src/
-
-          microk8s kubectl delete pod src-sync-worker -n airflow --wait=false
+          # Force webserver rollout ONLY if underlying src modules alter core engine behaviors
+          if [[ "${{ steps.changes.outputs.src_changed }}" == "true" ]]; then
+            echo "Source utilities modified. Executing rolling restart of web interface..."
+            microk8s kubectl rollout restart deployment/airflow-webserver -n airflow
+          fi
 
       - name: Verify cluster state
         if: always()
         run: |
           echo "=== Workload Status ==="
-          microk8s kubectl get pods,svc,pvc -n airflow
-          echo ""
-          echo "To connect to the Airflow 3 Dashboard:"
-          echo "  microk8s kubectl port-forward -n airflow svc/airflow-webserver 3003:3003"
+          microk8s kubectl get pods,svc,cm -n airflow
