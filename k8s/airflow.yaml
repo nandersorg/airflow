@@ -19,17 +19,15 @@ spec:
         component: webserver
     spec:
       initContainers:
-        - name: install-requirements
-          image: apache/airflow:3.2.2-python3.11
+        - name: sync-dags
+          image: localhost:32000/airflow-custom:latest
           command:
             - /bin/bash
             - -c
-            - pip install --no-cache-dir --user -r /requirements/requirements.txt
-          volumeMounts:
-            - mountPath: /requirements
-              name: requirements-volume
-            - mountPath: /home/airflow/.local
-              name: airflow-user-site
+            - |
+              mkdir -p /home/airflow/dags /home/airflow/src
+              cp -L /config/dags/* /home/airflow/dags/
+              cp -L /config/src/* /home/airflow/src/
         - name: sync-dags
           image: apache/airflow:3.2.2-python3.11
           command:
