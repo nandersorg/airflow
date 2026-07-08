@@ -84,16 +84,7 @@ spec:
               value: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
             - name: AIRFLOW__FAB__AUTH_TYPE
               value: "database"
-          volumeMounts:
-            - mountPath: /home/airflow
-              name: airflow-home
-            - mountPath: /home/airflow/.local
-              name: airflow-user-site
       volumes:
-        - name: airflow-home
-          emptyDir: {}
-        - name: airflow-user-site
-          emptyDir: {}
         - name: requirements-volume
           configMap:
             name: airflow-requirements
