@@ -1,8 +1,3 @@
-"""
-Airflow DAG definition for the weekly scheduled retraining of the QuickDraw
-classification model.
-"""
-
 import datetime
 from airflow import DAG
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import (
