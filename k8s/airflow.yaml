@@ -20,7 +20,7 @@ spec:
     spec:
       initContainers:
         - name: sync-dags
-          image: localhost:32000/airflow-custom:3.2.2-python3.11
+          image: localhost:32000/airflow-custom:3.3.0-python3.13
           command:
             - /bin/bash
             - -c
@@ -29,7 +29,7 @@ spec:
               cp -L /config/dags/* /home/airflow/dags/
               cp -L /config/src/* /home/airflow/src/
         - name: sync-dags
-          image: apache/airflow:3.2.2-python3.11
+          image: apache/airflow:3.3.0-python3.13
           command:
             - /bin/bash
             - -c
@@ -50,7 +50,7 @@ spec:
               name: src-volume
       containers:
         - name: webserver
-          image: apache/airflow:3.2.2-python3.11
+          image: apache/airflow:3.3.0-python3.13
           command:
             - airflow
             - api-server

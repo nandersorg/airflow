@@ -18,7 +18,7 @@ spec:
       hostname: airflow-scheduler
       initContainers:
         - name: install-requirements
-          image: apache/airflow:3.2.2-python3.11
+          image: apache/airflow:3.3.0-python3.13
           command:
             - /bin/bash
             - -c
@@ -27,7 +27,7 @@ spec:
             - mountPath: /requirements
               name: requirements-volume
         - name: sync-dags
-          image: apache/airflow:3.2.2-python3.11
+          image: apache/airflow:3.3.0-python3.13
           command:
             - /bin/bash
             - -c
@@ -48,7 +48,7 @@ spec:
               name: src-volume
       containers:
         - name: scheduler
-          image: apache/airflow:3.2.2-python3.11
+          image: apache/airflow:3.3.0-python3.13
           command:
             - airflow
             - scheduler

@@ -25,7 +25,7 @@ jobs:
 
       - name: Build and Push Custom Airflow Image
         run: |
-          IMAGE_NAME="localhost:32000/airflow-custom:3.2.2-python3.11"
+          IMAGE_NAME="localhost:32000/airflow-custom:3.3.0-python3.13"
 
           # Build the image locally on your runner
           docker build -t $IMAGE_NAME .

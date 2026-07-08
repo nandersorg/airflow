@@ -10,7 +10,7 @@ spec:
       restartPolicy: Never
       initContainers:
         - name: install-requirements
-          image: apache/airflow:3.2.2-python3.11
+          image: apache/airflow:3.3.0-python3.13
           command:
             - /bin/bash
             - -c
@@ -20,7 +20,7 @@ spec:
               name: requirements-volume
       containers:
         - name: migrate
-          image: apache/airflow:3.2.2-python3.11
+          image: apache/airflow:3.3.0-python3.13
           # Gewijzigd naar bash om zowel de migratie als de admin user aan te maken
           command:
             - /bin/bash

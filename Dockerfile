@@ -1,4 +1,4 @@
-FROM apache/airflow:3.2.2-python3.11
+FROM apache/airflow:3.3.0-python3.13
 
 # Copy your requirements definition file
 COPY --chown=airflow:root requirements.txt /requirements.txt
