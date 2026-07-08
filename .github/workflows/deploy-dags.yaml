@@ -7,6 +7,7 @@ on:
       - main
     paths:
       - "dags/**"
+      - "src/**"
       - ".github/workflows/deploy-dags.yaml"
 
 jobs:
@@ -15,6 +16,36 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect DAG and src changes
+        id: changes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "push" ]] && [[ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]]; then
+            changed_files="$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}")"
+          elif git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+            changed_files="$(git diff --name-only HEAD~1 HEAD)"
+          else
+            changed_files="$(git ls-files dags src)"
+          fi
+
+          dags_changed=false
+          src_changed=false
+
+          if printf '%s\n' "$changed_files" | grep -q '^dags/'; then
+            dags_changed=true
+          fi
+
+          if printf '%s\n' "$changed_files" | grep -q '^src/'; then
+            src_changed=true
+          fi
+
+          echo "dags_changed=$dags_changed" >> "$GITHUB_OUTPUT"
+          echo "src_changed=$src_changed" >> "$GITHUB_OUTPUT"
 
       - name: Ensure namespace
         run: |
@@ -23,11 +54,34 @@ jobs:
           microk8s kubectl wait --for=create namespace/airflow --timeout=15s
 
       - name: Create or update airflow-dags configmap
+        if: steps.changes.outputs.dags_changed == 'true'
         run: |
           microk8s kubectl create configmap airflow-dags \
             --from-file=dags/ \
             --namespace=airflow \
             --dry-run=client -o yaml | microk8s kubectl apply -f -
+
+      - name: Create or update airflow-src configmap
+        if: steps.changes.outputs.src_changed == 'true'
+        run: |
+          microk8s kubectl create configmap airflow-src \
+            --from-file=src/ \
+            --namespace=airflow \
+            --dry-run=client -o yaml | microk8s kubectl apply -f -
+
+      - name: Restart Airflow after src changes
+        if: steps.changes.outputs.src_changed == 'true'
+        run: |
+          microk8s kubectl rollout restart deployment/airflow-webserver -n airflow
+          microk8s kubectl rollout restart deployment/airflow-scheduler -n airflow
+          microk8s kubectl rollout restart deployment/airflow-dag-processor -n airflow
+
+      - name: Wait for Airflow restart after src changes
+        if: steps.changes.outputs.src_changed == 'true'
+        run: |
+          microk8s kubectl rollout status deployment/airflow-webserver -n airflow --timeout=5m
+          microk8s kubectl rollout status deployment/airflow-scheduler -n airflow --timeout=5m
+          microk8s kubectl rollout status deployment/airflow-dag-processor -n airflow --timeout=5m
 
       - name: Verify cluster state
         if: always()
