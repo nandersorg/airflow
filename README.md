@@ -104,8 +104,8 @@ Schedule: Daily at 06:00 UTC
 **Dependencies:**
 - `requests` — HTTP requests
 - `beautifulsoup4` — RSS/HTML parsing
-- `psycopg2-binary` — PostgreSQL driver for metadata DB
-- `asyncpg` — async PostgreSQL driver used by Airflow 3
+- `psycopg2-binary` — PostgreSQL driver used by `src/storage.py` for sentiment results
+- Airflow 3.4 uses Psycopg 3 by default for its metadata database
 - Running Ollama service at `http://ollama-lb.gobble.svc.cluster.local:11434`
 
 ## Configuration
