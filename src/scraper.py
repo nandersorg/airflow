@@ -9,15 +9,16 @@ patterns and cleansing text payloads for down-stream SLM ingestion.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from email.utils import parsedate_to_datetime
 import xml.etree.ElementTree as ET
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
 from typing import Any
+
 import requests
 
 # Importeer de feed-configuratie en types uit je sentiment-module
-from src.sentiment import NOS_RSS_FEEDS, NEWS_CATEGORY
+from src.sentiment import NEWS_CATEGORY, NOS_RSS_FEEDS
 
 
 class HTMLTagStripper(HTMLParser):
@@ -104,9 +105,7 @@ def scrape_nos_articles(
                         published_node.text.strip()
                     )
                     if published_at.tzinfo is None:
-                        published_at = published_at.replace(
-                            tzinfo=timezone.utc
-                        )
+                        published_at = published_at.replace(tzinfo=UTC)
                 except (TypeError, ValueError):
                     published_at = None
 
@@ -122,7 +121,7 @@ def scrape_nos_articles(
                         "category": category,
                         "source": "NOS",
                         "published_at": published_at,
-                        "scraped_at": datetime.now(timezone.utc),
+                        "scraped_at": datetime.now(UTC),
                     }
                 )
 

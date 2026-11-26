@@ -1,21 +1,21 @@
-from datetime import datetime, timedelta, timezone
+import os
+import sys
+from datetime import UTC, datetime, timedelta
 
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG
-import sys
-import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from src.scraper import scrape_nos_articles
-from src.sentiment import analyze_sentiment, NOS_RSS_FEEDS
+from src.sentiment import NOS_RSS_FEEDS, analyze_sentiment
 from src.storage import persist_article_sentiment
 
 default_args = {
     "owner": "nander",
     "retries": 2,
     "retry_delay": timedelta(minutes=5),
-    "start_date": datetime(2026, 6, 27, tzinfo=timezone.utc),
+    "start_date": datetime(2026, 6, 27, tzinfo=UTC),
 }
 
 dag = DAG(
@@ -39,7 +39,7 @@ def scrape_and_analyze(**context):
         sentiment = analyze_sentiment(
             article["title"], category=article["category"]
         )
-        analyzed_at = datetime.now(timezone.utc)
+        analyzed_at = datetime.now(UTC)
         result = {
             **article,
             "sentiment": sentiment,
@@ -66,5 +66,3 @@ scrape_task = PythonOperator(
     do_xcom_push=False,
     dag=dag,
 )
-
-scrape_task
