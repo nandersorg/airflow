@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import os
+from datetime import UTC, datetime
 from typing import Any
 
 import psycopg2
@@ -29,14 +29,13 @@ def persist_article_sentiment(article: dict[str, Any]) -> None:
         print("Skipping sentiment persistence: article has no URL.")
         return
 
-    scraped_at = article.get("scraped_at") or datetime.now(timezone.utc)
+    scraped_at = article.get("scraped_at") or datetime.now(UTC)
     published_at = article.get("published_at")
-    analyzed_at = article.get("analyzed_at") or datetime.now(timezone.utc)
+    analyzed_at = article.get("analyzed_at") or datetime.now(UTC)
 
-    with psycopg2.connect(database_url) as conn:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                """
+    with psycopg2.connect(database_url) as conn, conn.cursor() as cursor:
+        cursor.execute(
+            """
                 INSERT INTO news_articles (
                     source,
                     category,
@@ -60,16 +59,16 @@ def persist_article_sentiment(article: dict[str, Any]) -> None:
                     scraped_at = EXCLUDED.scraped_at,
                     analyzed_at = EXCLUDED.analyzed_at,
                     updated_at = NOW()
-                """,
-                (
-                    article.get("source", "NOS"),
-                    article["category"],
-                    article["title"],
-                    article.get("description"),
-                    article["url"],
-                    article["sentiment"],
-                    published_at,
-                    scraped_at,
-                    analyzed_at,
-                ),
-            )
+            """,
+            (
+                article.get("source", "NOS"),
+                article["category"],
+                article["title"],
+                article.get("description"),
+                article["url"],
+                article["sentiment"],
+                published_at,
+                scraped_at,
+                analyzed_at,
+            ),
+        )

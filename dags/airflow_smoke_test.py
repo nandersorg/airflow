@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG
@@ -7,14 +7,14 @@ from airflow.sdk import DAG
 def smoke_test() -> None:
     """Run a local-only smoke test."""
     print("Airflow smoke test is running")
-    print(f"Current UTC time: {datetime.now(timezone.utc).isoformat()}")
+    print(f"Current UTC time: {datetime.now(UTC).isoformat()}")
 
 
 default_args = {
     "owner": "nander",
     "retries": 0,
     "retry_delay": timedelta(minutes=1),
-    "start_date": datetime(2026, 6, 28, tzinfo=timezone.utc),
+    "start_date": datetime(2026, 6, 28, tzinfo=UTC),
 }
 
 with DAG(
@@ -29,5 +29,3 @@ with DAG(
         python_callable=smoke_test,
         do_xcom_push=False,
     )
-
-    smoke_task

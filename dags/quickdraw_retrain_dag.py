@@ -1,4 +1,5 @@
 import datetime
+
 from airflow import DAG
 from airflow.providers.cncf.kubernetes.operators.pod import (
     KubernetesPodOperator,
@@ -70,5 +71,3 @@ with DAG(
         in_cluster=True,
         get_logs=True,
     )
-
-    run_quickdraw_training

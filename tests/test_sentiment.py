@@ -18,7 +18,6 @@ class FakeResponse:
     def raise_for_status(self):
         if self._status_raises:
             raise self._status_raises
-        return None
 
     def json(self):
         return self._payload
@@ -47,10 +46,11 @@ class SentimentTests(unittest.TestCase):
             FakeResponse({"message": {"content": "NEUTRAL"}}),
         ]
 
-        with patch("src.sentiment.requests.post", side_effect=side_effects):
-            with patch("src.sentiment.time.sleep") as sleep_mock:
-                self.assertEqual(analyze_sentiment("Titel"), "NEUTRAL")
-                sleep_mock.assert_called_once()
+        with patch(
+            "src.sentiment.requests.post", side_effect=side_effects
+        ), patch("src.sentiment.time.sleep") as sleep_mock:
+            self.assertEqual(analyze_sentiment("Titel"), "NEUTRAL")
+            sleep_mock.assert_called_once()
 
     @patch.dict(
         os.environ,
@@ -64,9 +64,8 @@ class SentimentTests(unittest.TestCase):
         with patch(
             "src.sentiment.requests.post",
             side_effect=requests.ConnectionError("still down"),
-        ):
-            with patch("src.sentiment.time.sleep"):
-                self.assertIsNone(analyze_sentiment("Titel"))
+        ), patch("src.sentiment.time.sleep"):
+            self.assertIsNone(analyze_sentiment("Titel"))
 
     @patch.dict(os.environ, {}, clear=True)
     def test_supports_legacy_response_field(self):
